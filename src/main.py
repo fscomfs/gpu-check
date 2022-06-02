@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 import os
 import pynvml
+import torch
 
 NODE_IP = os.getenv('NODE_IP')
 if NODE_IP == None:
@@ -49,10 +50,9 @@ def checkDeviceIsAvailable(gpuNum, appNum, msg):
 
     try:
         for index in freeGPUIndex:
-            # aR = torch.rand((10, 1024, 256)).to('cuda:'+index)
-            # b = (aR + 1) * 2
-            # print(aR.shape)
-            print("")
+            aR = torch.rand((10, 1024, 256)).to('cuda:'+index)
+            b = (aR + 1) * 2
+            print(aR.shape)
     except RuntimeError as rE:
         msg += str(rE)
         if rE.message in "out of memory":
@@ -69,14 +69,15 @@ def checkNvidia():
         appNum = 1
     msg = []
     flag = False
-    # 0 成功 1内存溢出无法使用 2 进程冲突 3 检测异常 4 没有GPU
+    # 0 成功 1内存溢出无法使用 2 进程冲突 3 检测异常 4 没有GPU 5 INIT_ERROR
     status = 0
-    statusMsg = ['SUCCESS', 'OOM', 'PROCESS_CONFLICT', "CHECK_ERROR", "NO GPU", ""]
+    statusMsg = ['SUCCESS', 'OOM', 'PROCESS_CONFLICT', "CHECK_ERROR", "NO GPU", "INIT_ERROR"]
     try:
         count = deviceNvmlInit()  # 初始化ml
         status = checkDeviceIsAvailable(count, int(appNum), msg)
     except Exception as err:
         flag = False
+        status = 5
         msg += str(err)
     finally:
         showDown()
