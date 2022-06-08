@@ -85,7 +85,7 @@ def checkDeviceIsAvailable(gpuNum, appNum, msg):
     freeGPUIndex = []
     if len(gpuInfo) > 0:
         for g in gpuInfo:
-            if g['processCount'] == 0 and g['usageRate'] <= 2:
+            if g['processCount'] == 0 and g['usageRate'] <= 0.3:
                 freeGPU += 1
                 freeGPUIndex.append(g["index"])
     print("gpuInfo:", gpuInfo)
