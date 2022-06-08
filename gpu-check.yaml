@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: daemonset-gpu-check
+spec:
+  selector:
+    matchLabels:
+      app: daemonset-gpu-check
+  template:
+    metadata:
+      labels:
+        app: daemonset-gpu-check
+      name: daemonset-gpu-check
+    spec:
+      nodeSelector:
+        beta.kubernetes.io/arch: amd64
+      containers:
+      - args:
+        - python /home/src/main-check-gpu.py
+        command:
+        - /bin/sh
+        - -c
+        ports:
+        - containerPort: 80
+          hostPort: 64235
+          name: http
+          protocol: TCP
+        name: daemonset-gpu-check
+        image: 192.168.1.130:8099/evtrain/check-gpu-daemon:v1
+        imagePullPolicy: Always
+        env:
+         - name: NODE_NAME
+           valueFrom:
+              fieldRef:
+                 fieldPath: spec.nodeName
+         - name: NODE_IP
+           valueFrom:
+              fieldRef:
+                  fieldPath: status.hostIP
+        securityContext:
+          capabilities:
+            add:
+            - SYS_ADMIN
+          privileged: true
+        volumeMounts:
+        - mountPath: /etc/localtime
+          name: localtime
+      imagePullSecrets:
+      - name: eagle-nest-registry-key
+      volumes:
+      - hostPath:
+          path: /etc/localtime
+          type: ""
+        name: localtime
