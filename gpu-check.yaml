@@ -26,7 +26,7 @@ spec:
           name: http
           protocol: TCP
         name: daemonset-gpu-check
-        image: 192.168.1.130:8099/evtrain/check-gpu-daemon:v1
+        image: 192.168.1.130:8099/evtrain/check-gpu-daemon:v1.1
         imagePullPolicy: Always
         env:
          - name: NODE_NAME
@@ -45,6 +45,8 @@ spec:
         volumeMounts:
         - mountPath: /etc/localtime
           name: localtime
+        - mountPath: /home/log
+          name: logpath
       imagePullSecrets:
       - name: eagle-nest-registry-key
       volumes:
@@ -52,3 +54,7 @@ spec:
           path: /etc/localtime
           type: ""
         name: localtime
+      - hostPath:
+          path: /var/log/check-gpu
+          type: ""
+        name: logpath

@@ -6,14 +6,17 @@ import logging
 from multiprocessing import Process
 import multiprocessing
 from ctypes import c_char_p
-
+if not os.path.exists("/home/log"):
+    os.makedirs("/home/log")
 logger = logging.getLogger('main')
 logger.setLevel(level=logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s')
 stream_handler = logging.StreamHandler()
+file_handler = logging.FileHandler("/home/log/check-gpu.log", mode="a", encoding="utf-8")
 stream_handler.setFormatter(formatter)
+file_handler.setFormatter(formatter)
 logger.addHandler(stream_handler)
-
+logger.addHandler(file_handler)
 _RESULT = multiprocessing.Manager().Array('i', [0])
 _MSG = multiprocessing.Manager().Value(c_char_p, "")
 
