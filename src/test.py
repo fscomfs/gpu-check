@@ -1,44 +1,26 @@
-import torch
-import time
-from multiprocessing import Process
-import multiprocessing
-import logging
+import test2
 
-logger = logging.getLogger('main')
-logger.setLevel(level=logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s')
-stream_handler = logging.StreamHandler()
-stream_handler.setFormatter(formatter)
-logger.addHandler(stream_handler)
+a = [1, 2]
+test2.testFn(a)
+print(a)
 
-_RESULT = multiprocessing.Manager().Array('i', [0])
+dict = {"one": 1, "two": 2, "three": 3}
+
+print(dict.keys())
+
+for d in dict:
+    print(dict[d])
 
 
-def c(_RESULT):
-    try:
-        aR = torch.rand((10, 1024, 256)).to('cuda:0')
-        b = (aR + 1) * 2
-        print(b)
-        logger.error("计算")
-    except RuntimeError as rE:
-        logger.error(rE)
-        logger.error(str(rE))
-        if "out of memory" in str(rE):
-            _RESULT[0] = 1  # 调用显卡OOM
-            logger.error("OOM++++++++++++++++++" + str(_RESULT[0]))
-        else:
-            _RESULT[0] = 3  # 检测出现异常 调用GPU失败
-            logger.error("++++++++++++++++++" + str(_RESULT[0]))
-            return
+for v in dict.values():
+    print(v)
+print(dict.values())
 
 
-s = []
-for i in range(7):
-    w = Process(target=c, args=(_RESULT,))
-    s.append(w)
-    w.start()
+print(int("12"))
 
-for ll in s:
-    ll.join()
+print(chr(98))
 
-print(_RESULT[:])
+print(ord("b"))
+
+print(hex(98))

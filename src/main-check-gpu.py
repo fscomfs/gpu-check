@@ -6,6 +6,7 @@ import logging
 from multiprocessing import Process
 import multiprocessing
 from ctypes import c_char_p
+
 if not os.path.exists("/home/log"):
     os.makedirs("/home/log")
 logger = logging.getLogger('main')
@@ -17,7 +18,7 @@ stream_handler.setFormatter(formatter)
 file_handler.setFormatter(formatter)
 logger.addHandler(stream_handler)
 logger.addHandler(file_handler)
-_RESULT = multiprocessing.Manager().Array('i', [0])
+_RESULT = multiprocessing.Manager().Array('i', [0, 0, 0, 0, 0, 0])
 _MSG = multiprocessing.Manager().Value(c_char_p, "")
 
 NODE_IP = os.getenv('NODE_IP')
@@ -42,31 +43,25 @@ def showDown():
     pynvml.nvmlShutdown()
 
 
-def gpuCmd(freeGPUIndex, msg, RESULT):
-    cur = 0
+def gpuCmd(msg, RESULT, gpuIndex):
+    cur = gpuIndex
+    logger.info("检测第"+str(gpuIndex)+"张卡开始")
     try:
-        for index in freeGPUIndex:
-            cur = index
-            aR = torch.rand((10, 1024, 256)).to('cuda:' + str(index))
-            b = (aR + 1) * 2
-            logger.info(aR.shape)
-            # logger.info("释放显存资源")
-            # torch.cuda.empty_cache()
+        aR = torch.rand(10).to('cuda:' + str(gpuIndex))
+        print(aR.shape)
     except RuntimeError as rE:
         logger.error(rE)
         msg.value = msg.value + ("index:" + str(cur) + "-" + str(rE))
         if "out of memory" in str(rE):
             logger.info("调用显卡OOM")
-            RESULT[0] = 1  # 调用显卡OOM
+            RESULT[gpuIndex] = 1  # 调用显卡OOM
             return
         else:
             logger.info("检测出现异常 调用GPU失败")
             msg.value = msg.value + "检测出现异常 调用GPU失败"
-            RESULT[0] = 3  # 检测出现异常 调用GPU失败
+            RESULT[gpuIndex] = 3  # 检测出现异常 调用GPU失败
             return
-    # finally:
-    # logger.info("释放显存资源")
-    RESULT[0] = 0
+    RESULT[gpuIndex] = 0
     return
 
 
@@ -78,11 +73,11 @@ def checkDeviceIsAvailable(gpuNum, appNum, msg):
         handle = pynvml.nvmlDeviceGetHandleByIndex(i)
         # s = pynvml.nvmlDeviceGetMemoryInfo(handler,1)
         memoryInfo = pynvml.nvmlDeviceGetMemoryInfo(handle)
-        processInfos = pynvml.nvmlDeviceGetGraphicsRunningProcesses_v2(handle)
+        # processInfos = pynvml.nvmlDeviceGetGraphicsRunningProcesses_v2(handle)
         # picInfo = pynvml.nvmlDeviceGetPciInfo(handle)
         # dis = pynvml.nvmlDeviceDiscoverGpus(picInfo)
         gpuInfo.append(
-            {'index': i, 'processCount': len(processInfos),
+            {'index': i, 'processCount': 0,
              'usageRate': (memoryInfo.used / (memoryInfo.total * 1.0)) * 100})
     freeGPU = 0
     freeGPUIndex = []
@@ -98,18 +93,38 @@ def checkDeviceIsAvailable(gpuNum, appNum, msg):
         msg.value = msg.value + "当前节点[" + NODE_NAME + "]存在进程冲突的可能"
         logger.info("当前节点[" + NODE_NAME + "]存在进程冲突的可能")
         return 2  # 进程冲突
-    s = Process(target=gpuCmd, args=(freeGPUIndex, msg, _RESULT,))
+    process = []
     logger.info("GPU检测开始")
-    s.start()
-    s.join()
-    logger.info("完成GPU检测" + str(_RESULT[0]))
-    return str(_RESULT[0])
+    for gpuIndex in freeGPUIndex:
+        s = Process(target=gpuCmd, args=(msg, _RESULT, gpuIndex,))
+        process.append(s)
+        s.start()
+
+    for p in process:
+        p.join()
+    logger.info("完成GPU检测" + str(_RESULT))
+    if 1 in _RESULT:
+        logger.info("GPU异常检测 return 1")
+        return 1
+    if 2 in _RESULT:
+        logger.info("GPU异常检测 return 2")
+        return 2
+    if 3 in _RESULT:
+        logger.info("GPU异常检测 return 3")
+        return 3
+    if 0 in _RESULT:
+        logger.info("GPU异常检测 return 0")
+        return 0
+
+    return 0
 
 
 @app.route('/api/checkNvidia', methods=['GET'])
 def checkNvidia():
-    _RESULT[0] = 0
+    for i in _RESULT:
+        _RESULT[i] = 0
     _MSG.value = ""
+    logger.info("RESULT="+str(_RESULT))
     appNum = request.args.get("appNum")
     if appNum == None:
         appNum = 1

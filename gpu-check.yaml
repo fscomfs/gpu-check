@@ -26,7 +26,7 @@ spec:
           name: http
           protocol: TCP
         name: daemonset-gpu-check
-        image: 192.168.1.130:8099/evtrain/check-gpu-daemon:v1.1
+        image: 172.16.0.70:8099/evtrain/check-gpu-daemon:v1.4
         imagePullPolicy: Always
         env:
          - name: NODE_NAME
